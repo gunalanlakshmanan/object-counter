@@ -78,6 +78,25 @@ pip install -r requirements.txt
 
 ## Run the application
 
+### Env variables
+Default values of env variables set for count adapter.
+```
+DB_TYPE=MongoDB #SQL,InMemory
+DB_HOST=localhost
+DB_PORT=27017
+DB_NAME=prod_counter
+DB_USER=postgres # For SQL DB type
+DB_PSWD=postgres # For SQL DB type
+```
+Default values of env variables for object detector.
+```
+TFS_HOST=localhost
+TFS_PORT=8501
+MODEL_NAME=rfcn
+MODEL_VERSION=1
+```
+Pass the env variable for which you want to change the default value.
+
 ### Using fakes
 ```
 python -m counter.entrypoints.webapp
