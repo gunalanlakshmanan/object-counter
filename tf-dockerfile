@@ -1,0 +1,7 @@
+FROM intel/intel-optimized-tensorflow-serving:2.8.0
+
+EXPOSE 8500
+EXPOSE 8501
+
+ENTRYPOINT ["/usr/bin/tf_serving_entrypoint.sh"]
+CMD ["--allow_version_labels_for_unavailable_models=true", "--model_config_file_poll_wait_seconds=60", "--model_config_file=/config/model_config.config"]

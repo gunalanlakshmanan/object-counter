@@ -21,7 +21,10 @@ def get_count_adapter() -> ObjectCountRepo:
 def get_object_detector() -> ObjectDetector:
     tfs_host = os.environ.get('TFS_HOST', 'localhost')
     tfs_port = os.environ.get('TFS_PORT', 8501)
-    return TFSObjectDetector(tfs_host, tfs_port, 'rfcn')
+    model_name = os.environ.get('MODEL_NAME', 'rfcn')
+    version = os.environ.get('MODEL_VERSION', 1)
+    label = os.environ.get('ENV', 'dev')
+    return TFSObjectDetector(tfs_host, tfs_port, model_name, version, label)
 
 
 # ================
