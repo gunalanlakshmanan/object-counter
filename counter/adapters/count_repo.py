@@ -10,7 +10,9 @@ from counter.domain.ports import ObjectCountRepo
 
 class CountInMemoryRepo(ObjectCountRepo):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
         self.store = dict()
 
     def read_values(self, object_classes: List[str] = None) -> List[ObjectCount]:
@@ -31,7 +33,9 @@ class CountInMemoryRepo(ObjectCountRepo):
 
 class CountMongoDBRepo(ObjectCountRepo):
 
-    def __init__(self, host, port, database):
+    def __init__(self, host, port, database, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
         self.__host = host
         self.__port = port
         self.__database = database
@@ -59,17 +63,21 @@ class CountMongoDBRepo(ObjectCountRepo):
 
 class CountSQLRepo(ObjectCountRepo):
 
-    def __init__(self, user, pswd, host, port, database):
-        self.db_engine = create_engine(f"postgresql://{user}:{pswd}@{host}:{port}/{database}")
+    def __init__(self, host, port, database, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self.__db_engine = create_engine(
+            f"postgresql://{self._kwargs.get('user')}:{self._kwargs.get('pswd')}@{host}:{port}/{database}"
+        )
         base = declarative_base()
-        self.ObjectCounter = Table(
-            'object_counter', base.metadata, autoload_with=self.db_engine, schema='object_detection'
+        self.__ObjectCounter = Table(
+            'object_counter', base.metadata, autoload_with=self.__db_engine, schema='object_detection'
         )
 
     def read_values(self, object_classes: List[str] = None) -> List[ObjectCount]:
         object_counts = []
-        with self.db_engine.connect() as conn:
-            query = select(self.ObjectCounter)
+        with self.__db_engine.connect() as conn:
+            query = select(self.__ObjectCounter)
             result_set = conn.execute(query)
             if result_set.rowcount:
                 result_set = result_set.all()
@@ -78,17 +86,17 @@ class CountSQLRepo(ObjectCountRepo):
         return object_counts
 
     def update_values(self, new_values: List[ObjectCount]):
-        with self.db_engine.connect() as conn:
+        with self.__db_engine.connect() as conn:
             for value in new_values:
-                query = select(self.ObjectCounter).where(self.ObjectCounter.c.object_class == value.object_class)
+                query = select(self.__ObjectCounter).where(self.__ObjectCounter.c.object_class == value.object_class)
                 result = conn.execute(query)
                 if result.rowcount:
-                    query = update(self.ObjectCounter)\
-                        .where(self.ObjectCounter.c.object_class == value.object_class)\
-                        .values(count=self.ObjectCounter.c.count+1)
+                    query = update(self.__ObjectCounter)\
+                        .where(self.__ObjectCounter.c.object_class == value.object_class)\
+                        .values(count=self.__ObjectCounter.c.count+1)
                     conn.execute(query)
                 else:
-                    query = insert(self.ObjectCounter).values(object_class=value.object_class)
+                    query = insert(self.__ObjectCounter).values(object_class=value.object_class)
                     conn.execute(query)
             conn.commit()
 

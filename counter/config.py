@@ -1,8 +1,27 @@
 import os
 
-from counter.adapters.count_repo import CountMongoDBRepo, CountInMemoryRepo, CountSQLRepo
+from counter.domain.ports import ObjectCountRepo, ObjectDetector
+from counter.adapters.count_repo import CountInMemoryRepo, CountMongoDBRepo, CountSQLRepo
 from counter.adapters.object_detector import TFSObjectDetector, FakeObjectDetector
 from counter.domain.actions import CountDetectedObjects, DetectObjects
+
+
+def get_count_adapter() -> ObjectCountRepo:
+    db_type = os.environ.get('DB_TYPE', 'MongoDB')
+    host = os.environ.get('DB_HOST', 'localhost')
+    port = os.environ.get('DB_PORT', 27017)
+    db = os.environ.get('DB_NAME', 'prod_counter')
+    user = os.environ.get('DB_USER', 'postgres')
+    pswd = os.environ.get('DB_PSWD', 'postgres')
+
+    count_repo = f"Count{db_type}Repo"
+    return globals()[count_repo](host=host, port=port, database=db, user=user, pswd=pswd)
+
+
+def get_object_detector() -> ObjectDetector:
+    tfs_host = os.environ.get('TFS_HOST', 'localhost')
+    tfs_port = os.environ.get('TFS_PORT', 8501)
+    return TFSObjectDetector(tfs_host, tfs_port, 'rfcn')
 
 
 # ================
@@ -15,13 +34,9 @@ def dev_count_action() -> CountDetectedObjects:
 
 
 def prod_count_action() -> CountDetectedObjects:
-    tfs_host = os.environ.get('TFS_HOST', 'localhost')
-    tfs_port = os.environ.get('TFS_PORT', 8501)
-    mongo_host = os.environ.get('MONGO_HOST', 'localhost')
-    mongo_port = os.environ.get('MONGO_PORT', 27017)
-    mongo_db = os.environ.get('MONGO_DB', 'prod_counter')
-    return CountDetectedObjects(TFSObjectDetector(tfs_host, tfs_port, 'rfcn'),
-                                CountMongoDBRepo(host=mongo_host, port=mongo_port, database=mongo_db))
+    object_detector = get_object_detector()
+    count_adapter = get_count_adapter()
+    return CountDetectedObjects(object_detector, count_adapter)
 
 
 def get_count_action() -> CountDetectedObjects:
@@ -39,9 +54,8 @@ def dev_detect_action() -> DetectObjects:
 
 
 def prod_detect_action() -> DetectObjects:
-    tfs_host = os.environ.get('TFS_HOST', 'localhost')
-    tfs_port = os.environ.get('TFS_PORT', 8501)
-    return DetectObjects(TFSObjectDetector(tfs_host, tfs_port, 'rfcn'))
+    object_detector = get_object_detector()
+    return DetectObjects(object_detector)
 
 
 def get_detect_action() -> DetectObjects:
