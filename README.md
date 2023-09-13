@@ -67,6 +67,12 @@ docker rm -f test-mongo
 docker run --name test-mongo --rm --net host -d mongo:latest
 ```
 
+## Run Postgres
+```bash
+docker build -f postgres-dockerfile -t postgres-db .
+docker run --rm -d --name test-postgres -p 5432:5432 -e POSTGRES_DB=prod_counter postgres-db
+```
+
 
 ## Setup virtualenv
 
