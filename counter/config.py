@@ -1,8 +1,13 @@
 import os
 
-from counter.adapters.count_repo import CountMongoDBRepo, CountInMemoryRepo
+from counter.adapters.count_repo import CountMongoDBRepo, CountInMemoryRepo, CountSQLRepo
 from counter.adapters.object_detector import TFSObjectDetector, FakeObjectDetector
-from counter.domain.actions import CountDetectedObjects
+from counter.domain.actions import CountDetectedObjects, DetectObjects
+
+
+# ================
+# Count Action
+# ================
 
 
 def dev_count_action() -> CountDetectedObjects:
@@ -23,3 +28,23 @@ def get_count_action() -> CountDetectedObjects:
     env = os.environ.get('ENV', 'dev')
     count_action_fn = f"{env}_count_action"
     return globals()[count_action_fn]()
+
+
+# ================
+# Detect Action
+# ================
+
+def dev_detect_action() -> DetectObjects:
+    return DetectObjects(FakeObjectDetector())
+
+
+def prod_detect_action() -> DetectObjects:
+    tfs_host = os.environ.get('TFS_HOST', 'localhost')
+    tfs_port = os.environ.get('TFS_PORT', 8501)
+    return DetectObjects(TFSObjectDetector(tfs_host, tfs_port, 'rfcn'))
+
+
+def get_detect_action() -> DetectObjects:
+    env = os.environ.get('ENV', 'dev')
+    detect_action_fn = f"{env}_detect_action"
+    return globals()[detect_action_fn]()

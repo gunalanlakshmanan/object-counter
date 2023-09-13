@@ -18,6 +18,11 @@ class Prediction:
 
 
 @dataclass
+class DetectionResponse:
+    predictions: List[Prediction]
+
+
+@dataclass
 class ObjectCount:
     object_class: str
     count: int
