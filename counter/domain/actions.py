@@ -1,24 +1,27 @@
 from PIL import Image
+from abc import ABC, abstractmethod
 
 from counter.debug import draw
-from counter.domain.models import CountResponse
+from counter.domain.models import CountResponse, DetectionResponse
 from counter.domain.ports import ObjectDetector, ObjectCountRepo
 from counter.domain.predictions import over_threshold, count
 
 
-class CountDetectedObjects:
-    def __init__(self, object_detector: ObjectDetector, object_count_repo: ObjectCountRepo):
+class BaseDetectObjects(ABC):
+    @abstractmethod
+    def execute(self, image, threshold):
+        raise NotImplementedError
+
+
+class DetectObjects(BaseDetectObjects, ABC):
+    def __init__(self, object_detector: ObjectDetector):
         self.__object_detector = object_detector
-        self.__object_count_repo = object_count_repo
 
-    def execute(self, image, threshold) -> CountResponse:
-        predictions = self.__find_valid_predictions(image, threshold)
-        object_counts = count(predictions)
-        self.__object_count_repo.update_values(object_counts)
-        total_objects = self.__object_count_repo.read_values()
-        return CountResponse(current_objects=object_counts, total_objects=total_objects)
+    def execute(self, image, threshold) -> DetectionResponse:
+        predictions = self._find_valid_predictions(image, threshold)
+        return DetectionResponse(predictions=predictions)
 
-    def __find_valid_predictions(self, image, threshold):
+    def _find_valid_predictions(self, image, threshold):
         predictions = self.__object_detector.predict(image)
         self.__debug_image(image, predictions, "all_predictions.jpg")
         valid_predictions = list(over_threshold(predictions, threshold=threshold))
@@ -31,3 +34,15 @@ class CountDetectedObjects:
             image = Image.open(image)
             draw(predictions, image, image_name)
 
+
+class CountDetectedObjects(DetectObjects):
+    def __init__(self, object_detector: ObjectDetector, object_count_repo: ObjectCountRepo):
+        super().__init__(object_detector)
+        self.__object_count_repo = object_count_repo
+
+    def execute(self, image, threshold) -> CountResponse:
+        predictions = self._find_valid_predictions(image, threshold)
+        object_counts = count(predictions)
+        self.__object_count_repo.update_values(object_counts)
+        total_objects = self.__object_count_repo.read_values()
+        return CountResponse(current_objects=object_counts, total_objects=total_objects)

@@ -1,6 +1,8 @@
 from typing import List
 
 from pymongo import MongoClient
+from sqlalchemy import create_engine, Table, select, insert, update
+from sqlalchemy.ext.declarative import declarative_base
 
 from counter.domain.models import ObjectCount
 from counter.domain.ports import ObjectCountRepo
@@ -8,7 +10,9 @@ from counter.domain.ports import ObjectCountRepo
 
 class CountInMemoryRepo(ObjectCountRepo):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
         self.store = dict()
 
     def read_values(self, object_classes: List[str] = None) -> List[ObjectCount]:
@@ -29,7 +33,9 @@ class CountInMemoryRepo(ObjectCountRepo):
 
 class CountMongoDBRepo(ObjectCountRepo):
 
-    def __init__(self, host, port, database):
+    def __init__(self, host, port, database, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
         self.__host = host
         self.__port = port
         self.__database = database
@@ -53,4 +59,44 @@ class CountMongoDBRepo(ObjectCountRepo):
         counter_col = self.__get_counter_col()
         for value in new_values:
             counter_col.update_one({'object_class': value.object_class}, {'$inc': {'count': value.count}}, upsert=True)
+
+
+class CountSQLRepo(ObjectCountRepo):
+
+    def __init__(self, host, port, database, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self.__db_engine = create_engine(
+            f"postgresql://{self._kwargs.get('user')}:{self._kwargs.get('pswd')}@{host}:{port}/{database}"
+        )
+        base = declarative_base()
+        self.__ObjectCounter = Table(
+            'object_counter', base.metadata, autoload_with=self.__db_engine, schema='object_detection'
+        )
+
+    def read_values(self, object_classes: List[str] = None) -> List[ObjectCount]:
+        object_counts = []
+        with self.__db_engine.connect() as conn:
+            query = select(self.__ObjectCounter)
+            result_set = conn.execute(query)
+            if result_set.rowcount:
+                result_set = result_set.all()
+                for row in result_set:
+                    object_counts.append(ObjectCount(row.object_class, row.count))
+        return object_counts
+
+    def update_values(self, new_values: List[ObjectCount]):
+        with self.__db_engine.connect() as conn:
+            for value in new_values:
+                query = select(self.__ObjectCounter).where(self.__ObjectCounter.c.object_class == value.object_class)
+                result = conn.execute(query)
+                if result.rowcount:
+                    query = update(self.__ObjectCounter)\
+                        .where(self.__ObjectCounter.c.object_class == value.object_class)\
+                        .values(count=self.__ObjectCounter.c.count+1)
+                    conn.execute(query)
+                else:
+                    query = insert(self.__ObjectCounter).values(object_class=value.object_class)
+                    conn.execute(query)
+            conn.commit()
 

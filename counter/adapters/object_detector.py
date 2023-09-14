@@ -20,8 +20,13 @@ class FakeObjectDetector(ObjectDetector):
 
 
 class TFSObjectDetector(ObjectDetector):
-    def __init__(self, host, port, model):
+    def __init__(self, host, port, model, version=None, label=None):
         self.url = f"http://{host}:{port}/v1/models/{model}:predict"
+        if version:
+            self.url = f"http://{host}:{port}/v1/models/{model}/versions/{version}:predict"
+        elif label:
+            self.url = f"http://{host}:{port}/v1/models/{model}/labels/{label}:predict"
+
         self.classes_dict = self.__build_classes_dict()
 
     def predict(self, image: BinaryIO) -> List[Prediction]:
